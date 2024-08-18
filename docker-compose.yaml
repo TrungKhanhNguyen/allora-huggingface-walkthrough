@@ -1,15 +1,15 @@
 services:
   inference:
-    container_name: inference-hf
+    container_name: inference-hf-sunny18
     build:
       context: .
       dockerfile: Dockerfile
     command: python -u /app/app.py
     ports:
-      - "8000:8000"
+      - "8018:8018"
 
-  worker:
-    container_name: worker
+  worker-sunny18:
+    container_name: worker-sunny18
     image: alloranetwork/allora-offchain-node:latest
     volumes:
       - ./worker-data:/data
