@@ -3,88 +3,76 @@ import requests
 import json
 import pandas as pd
 import torch
-import random
+from chronos import ChronosPipeline
 
-# create our Flask app
 app = Flask(__name__)
-        
-def get_simple_price(token):
-    base_url = "https://api.coingecko.com/api/v3/simple/price?ids="
-    token_map = {
-        'ETH': 'ethereum',
-        'SOL': 'solana',
-        'BTC': 'bitcoin',
-        'BNB': 'binancecoin',
-        'ARB': 'arbitrum'
-    }
-    token = token.upper()
-    if token in token_map:
-        url = f"{base_url}{token_map[token]}&vs_currencies=usd"
-        return url
-    else:
-        raise ValueError("Unsupported token") 
-               
-# define our endpoint
+model_name = "amazon/chronos-t5-tiny"
+try:
+    pipeline = ChronosPipeline.from_pretrained(
+        model_name,
+        device_map="auto",
+        torch_dtype=torch.bfloat16,
+    )
+except Exception as e:
+    pipeline = None
+    print(f"Failed to load pipeline: {e}")
+
+def get_binance_url(symbol="ETHUSDT", interval="1m", limit=1000):
+    return f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+
 @app.route("/inference/<string:token>")
 def get_inference(token):
+    if pipeline is None:
+        return Response(json.dumps({"error": "Pipeline is not available"}), status=500, mimetype='application/json')
+
+    symbol_map = {
+        'ETH': 'ETHUSDT',
+        'BTC': 'BTCUSDT',
+        'BNB': 'BNBUSDT',
+        'SOL': 'SOLUSDT',
+        'ARB': 'ARBUSDT'
+    }
+
+    token = token.upper()
+    if token in symbol_map:
+        symbol = symbol_map[token]
+    else:
+        return Response(json.dumps({"error": "Unsupported token"}), status=400, mimetype='application/json')
+
+    url = get_binance_url(symbol=symbol)
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        df = pd.DataFrame(data, columns=[
+            "open_time", "open", "high", "low", "close", "volume",
+            "close_time", "quote_asset_volume", "number_of_trades",
+            "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"
+        ])
+        df["close_time"] = pd.to_datetime(df["close_time"], unit='ms')
+        df = df[["close_time", "close"]]
+        df.columns = ["date", "price"]
+        df["price"] = df["price"].astype(float)
+        
+        if symbol in ['BTCUSDT', 'SOLUSDT']:
+            df = df.tail(10)  # 10mins BTCUSDT và SOLUSDT
+        else:
+            df = df.tail(20)  # 20mins
+    else:
+        return Response(json.dumps({"Failed to retrieve data from Binance API": str(response.text)}), 
+                        status=response.status_code, 
+                        mimetype='application/json')
+
+    context = torch.tensor(df["price"].values)
+    prediction_length = len(df)  # Sử dụng số lượng phút tương ứng với dữ liệu đã chọn
 
     try:
-      
-        url = get_simple_price(token)
-        headers = {
-          "accept": "application/json",
-          "x-cg-demo-api-key": "APIKEY" # replace with your API key
-        }
-    
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-          data = response.json()
-          if token == 'BTC':
-            price1 = data["bitcoin"]["usd"] + data["bitcoin"]["usd"]*1/200
-            price2 = data["bitcoin"]["usd"] - data["bitcoin"]["usd"]*1/200
-          if token == 'ETH':
-            price1 = data["ethereum"]["usd"] + data["ethereum"]["usd"]*1/200
-            price2 = data["ethereum"]["usd"] - data["ethereum"]["usd"]*1/200      
-          if token == 'SOL':
-            price1 = data["solana"]["usd"] + data["solana"]["usd"]*1/200
-            price2 = data["solana"]["usd"] - data["solana"]["usd"]*1/200  
-          if token == 'BNB':
-            price1 = data["binancecoin"]["usd"] + data["binancecoin"]["usd"]*1/200
-            price2 = data["binancecoin"]["usd"] - data["binancecoin"]["usd"]*1/200   
-          if token == 'ARB':
-            price1 = data["arbitrum"]["usd"] + data["arbitrum"]["usd"]*1/200
-            price2 = data["arbitrum"]["usd"] - data["arbitrum"]["usd"]*1/200            
-          random_float = str(round(random.uniform(price1, price2), 2))
-        return random_float
+        forecast = pipeline.predict(context, prediction_length)
+        forecast_mean = forecast[0].mean().item()  # Tính giá trị trung bình
+        return Response(str(forecast_mean), status=200, mimetype='text/plain')
     except Exception as e:
-        url = get_simple_price(token)
-        headers = {
-          "accept": "application/json",
-          "x-cg-demo-api-key": "APIKEY" # replace with your API key
-        }
-    
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-          data = response.json()
-          if token == 'BTC':
-            price1 = data["bitcoin"]["usd"] + data["bitcoin"]["usd"]*1/200
-            price2 = data["bitcoin"]["usd"] - data["bitcoin"]["usd"]*1/200
-          if token == 'ETH':
-            price1 = data["ethereum"]["usd"] + data["ethereum"]["usd"]*1/200
-            price2 = data["ethereum"]["usd"] - data["ethereum"]["usd"]*1/200      
-          if token == 'SOL':
-            price1 = data["solana"]["usd"] + data["solana"]["usd"]*1/200
-            price2 = data["solana"]["usd"] - data["solana"]["usd"]*1/200  
-          if token == 'BNB':
-            price1 = data["binancecoin"]["usd"] + data["binancecoin"]["usd"]*1/200
-            price2 = data["binancecoin"]["usd"] - data["binancecoin"]["usd"]*1/200   
-          if token == 'ARB':
-            price1 = data["arbitrum"]["usd"] + data["arbitrum"]["usd"]*1/200
-            price2 = data["arbitrum"]["usd"] - data["arbitrum"]["usd"]*1/200            
-          random_float = str(round(random.uniform(price1, price2)),2)
-        return random_float
+        return Response(str(e), status=500, mimetype='text/plain')
 
-    
-# run our Flask app
+# Chạy Flask app
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=8018, debug=True)
