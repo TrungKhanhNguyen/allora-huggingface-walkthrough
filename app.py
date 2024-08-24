@@ -13,7 +13,7 @@ def get_memecoin_token(blockheight):
     upshot_url = f"https://api.upshot.xyz/v2/allora/tokens-oracle/token/{blockheight}"
     headers = {
         "accept": "application/json",
-        "x-api-key": "UP-YOUR-KEY" # replace with your API key
+        "x-api-key": "UP-ad6b5045c4b849afb08db09d" # replace with your API key
     }   
     
     response = requests.get(upshot_url, headers=headers)
@@ -36,7 +36,7 @@ def get_simple_price(token):
     }
     headers = {
         "accept": "application/json",
-        "x-cg-demo-api-key": "CG-YOUR-KEY" # replace with your API key
+        "x-cg-demo-api-key": "CG-fn5Dnv5ujTE8SoQvQP5APwDu" # replace with your API key
     }
     token = token.upper()
     if token in token_map:
