@@ -8,9 +8,9 @@ COPY . /app
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt
  
-EXPOSE 8018
+EXPOSE 8011
  
 ENV NAME sample
  
 # Run gunicorn when the container launches and bind port 8000 from app.py
-CMD ["gunicorn", "-b", ":8018", "app:app"]
+CMD ["gunicorn", "-b", ":8011", "app:app"]
