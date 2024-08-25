@@ -66,26 +66,26 @@ def get_last_price(token, p):
 
     if token == 'BTC':
         price_up = float(p)*1.0015
-        price_down = float(p)*0.998
+        price_down = float(p)*0.999
         return str(format(random.uniform(price_up, price_down), ".2f"))
     
     elif token == 'ETH':
         price_up = float(p)*1.0015
-        price_down = float(p)*0.998
+        price_down = float(p)*0.999
         return str(format(random.uniform(price_up, price_down), ".2f"))
 
     elif token == 'SOL':
         price_up = float(p)*1.0015
-        price_down =float(p)*0.998
+        price_down =float(p)*0.999
         return str(format(random.uniform(price_up, price_down), ".2f"))
 
     elif token == 'BNB':
         price_up = float(p)*1.0015
-        price_down =float(p)*0.998  
+        price_down =float(p)*0.999  
         return str(format(random.uniform(price_up, price_down), ".2f"))
 
     elif token == 'ARB':
-        price_up = float(p)*1.002
+        price_up = float(p)*1.0015
         price_down =float(p)*0.999   
         return str(format(random.uniform(price_up, price_down), ".4f"))
     else:
